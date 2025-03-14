@@ -1,6 +1,6 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { createEditor, Descendant, Editor, Range, Transforms } from 'slate';
+import { createEditor, Descendant, Editor, Range, Transforms, Path, Point } from 'slate';
 import { Slate, Editable, withReact, ReactEditor } from 'slate-react';
 import { withHistory } from 'slate-history';
 import { v4 as uuidv4 } from 'uuid';
@@ -64,6 +64,19 @@ const TextEditor: React.FC = () => {
     }
   }, [selection, dispatch]);
 
+  // Custom function to check if a point is within a range
+  const isPointInRange = (range: Range, point: Point): boolean => {
+    const [startPoint, endPoint] = Range.edges(range);
+    return (
+      (Path.compare(point.path, startPoint.path) >= 0 &&
+        Path.compare(point.path, endPoint.path) <= 0) &&
+      (Path.compare(point.path, startPoint.path) > 0 ||
+        point.offset >= startPoint.offset) &&
+      (Path.compare(point.path, endPoint.path) < 0 ||
+        point.offset <= endPoint.offset)
+    );
+  };
+
   // Render leaf function to highlight tagged text
   const renderLeaf = useCallback((props: any) => {
     const { attributes, children, leaf } = props;
@@ -77,7 +90,8 @@ const TextEditor: React.FC = () => {
           focus: { path: tag.selection.focus.path, offset: tag.selection.focus.offset }
         };
         
-        return Editor.rangeIncludes(editor, tagRange, props.leaf.offset);
+        const leafPoint = { path: props.path, offset: props.leaf.offset || 0 };
+        return isPointInRange(tagRange, leafPoint);
       } catch (error) {
         return false;
       }
@@ -122,7 +136,7 @@ const TextEditor: React.FC = () => {
         <div className="flex-1 border rounded-md p-4 bg-white shadow-sm overflow-auto">
           <Slate
             editor={editor}
-            value={content}
+            initialValue={content}
             onChange={handleChange}
             onSelectionChange={handleSelectionChange}
           >

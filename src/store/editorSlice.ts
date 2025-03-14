@@ -2,6 +2,19 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Descendant } from 'slate';
 
+export interface CustomText {
+  text: string;
+}
+
+export interface ParagraphElement {
+  type: 'paragraph';
+  children: CustomText[];
+}
+
+// Define a custom type for our content
+export type CustomElement = ParagraphElement;
+export type CustomDescendant = CustomElement | CustomText;
+
 export interface Tag {
   id: string;
   content: string;
@@ -13,14 +26,14 @@ export interface Tag {
 }
 
 export interface EditorState {
-  content: Descendant[];
+  content: CustomDescendant[];
   tags: Tag[];
   fileName: string | null;
   lastSaved: string | null;
   isModified: boolean;
 }
 
-const initialContent: Descendant[] = [
+const initialContent: CustomDescendant[] = [
   {
     type: 'paragraph',
     children: [{ text: 'Welcome to the Text Editor. Open a file or start typing...' }],
@@ -40,7 +53,7 @@ export const editorSlice = createSlice({
   initialState,
   reducers: {
     setContent: (state, action: PayloadAction<Descendant[]>) => {
-      state.content = action.payload;
+      state.content = action.payload as CustomDescendant[];
       state.isModified = true;
     },
     addTag: (state, action: PayloadAction<Tag>) => {
