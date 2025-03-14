@@ -2,17 +2,35 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { Descendant } from 'slate';
 
+// Define custom text properties for formatting
 export interface CustomText {
   text: string;
+  bold?: boolean;
+  italic?: boolean;
+  underline?: boolean;
+  code?: boolean;
+  color?: string;
 }
 
+// Define different element types
 export interface ParagraphElement {
   type: 'paragraph';
   children: CustomText[];
 }
 
+export interface HeadingElement {
+  type: 'heading';
+  level: 1 | 2 | 3 | 4 | 5 | 6;
+  children: CustomText[];
+}
+
+export interface ListItemElement {
+  type: 'list-item';
+  children: CustomText[];
+}
+
 // Define a custom type for our content
-export type CustomElement = ParagraphElement;
+export type CustomElement = ParagraphElement | HeadingElement | ListItemElement;
 export type CustomDescendant = CustomElement | CustomText;
 
 export interface Tag {

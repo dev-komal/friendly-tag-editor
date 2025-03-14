@@ -41,12 +41,117 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ addTag, selection }) => {
     reader.onload = (event) => {
       try {
         const content = event.target?.result as string;
+        const fileExtension = file.name.split('.').pop()?.toLowerCase();
         
-        // Parse content into paragraphs
-        const paragraphs = content.split('\n').map(paragraph => ({
-          type: 'paragraph' as const,
-          children: [{ text: paragraph || ' ' }]  // Use space for empty lines
-        }));
+        // Parse content based on file type
+        let paragraphs;
+        
+        if (fileExtension === 'json') {
+          // Try to parse JSON and extract text content with formatting
+          try {
+            const jsonContent = JSON.parse(content);
+            // Check if it's already in our format
+            if (Array.isArray(jsonContent) && jsonContent.length > 0 && jsonContent[0].type) {
+              paragraphs = jsonContent;
+            } else {
+              // Convert generic JSON to paragraphs
+              paragraphs = [{
+                type: 'paragraph' as const,
+                children: [{ text: JSON.stringify(jsonContent, null, 2) }]
+              }];
+            }
+          } catch {
+            // If JSON parsing fails, treat as plain text
+            paragraphs = content.split('\n').map(paragraph => ({
+              type: 'paragraph' as const,
+              children: [{ text: paragraph || ' ' }]
+            }));
+          }
+        } else if (fileExtension === 'html') {
+          // Basic HTML parsing - this can be enhanced for better HTML support
+          // Remove common HTML tags while preserving line breaks
+          const plainText = content
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/p>/gi, '\n')
+            .replace(/<\/div>/gi, '\n')
+            .replace(/<\/h[1-6]>/gi, '\n')
+            .replace(/<[^>]*>/g, '');
+          
+          // Convert to paragraphs while preserving formatting hints
+          paragraphs = plainText.split('\n').map(paragraph => {
+            // Check for basic formatting patterns
+            const formattedChildren = [];
+            let currentText = '';
+            let isBold = false;
+            let isItalic = false;
+            
+            // This is a simplified approach - a full implementation would parse HTML properly
+            for (let i = 0; i < paragraph.length; i++) {
+              if (paragraph.substr(i, 2) === '**' && !isItalic) {
+                formattedChildren.push({ text: currentText, bold: isBold });
+                currentText = '';
+                isBold = !isBold;
+                i++;
+              } else if (paragraph.substr(i, 1) === '_' && !isBold) {
+                formattedChildren.push({ text: currentText, italic: isItalic });
+                currentText = '';
+                isItalic = !isItalic;
+              } else {
+                currentText += paragraph[i];
+              }
+            }
+            
+            // Add the remaining text
+            if (currentText) {
+              formattedChildren.push({ 
+                text: currentText, 
+                ...(isBold ? { bold: true } : {}),
+                ...(isItalic ? { italic: true } : {})
+              });
+            }
+            
+            return {
+              type: 'paragraph' as const,
+              children: formattedChildren.length > 0 ? formattedChildren : [{ text: paragraph || ' ' }]
+            };
+          });
+        } else {
+          // Plain text - split by newlines but preserve formatting markers
+          paragraphs = content.split('\n').map(paragraph => {
+            // Basic formatting detection for plain text
+            if (paragraph.startsWith('# ')) {
+              // Heading
+              return {
+                type: 'heading' as const,
+                level: 1,
+                children: [{ text: paragraph.substring(2) || ' ' }]
+              };
+            } else if (paragraph.startsWith('## ')) {
+              return {
+                type: 'heading' as const,
+                level: 2,
+                children: [{ text: paragraph.substring(3) || ' ' }]
+              };
+            } else if (paragraph.startsWith('- ') || paragraph.startsWith('* ')) {
+              // List item
+              return {
+                type: 'list-item' as const,
+                children: [{ text: paragraph.substring(2) || ' ' }]
+              };
+            } else {
+              // Regular paragraph with potential inline formatting
+              let formattedParagraph = {
+                type: 'paragraph' as const,
+                children: [{ text: paragraph || ' ' }]
+              };
+              
+              // If there are markdown-style formatting indicators, we could parse them here
+              // This is a simplified approach - a full implementation would use a proper markdown parser
+              
+              return formattedParagraph;
+            }
+          });
+        }
         
         // Dispatch the content to Redux store
         dispatch(setContent(paragraphs));

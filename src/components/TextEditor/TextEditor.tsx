@@ -1,7 +1,7 @@
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { createEditor, Descendant, Editor, Range, Transforms, Path, Point } from 'slate';
-import { Slate, Editable, withReact, ReactEditor } from 'slate-react';
+import { createEditor, Descendant, Editor, Range, Transforms, Path, Point, Element } from 'slate';
+import { Slate, Editable, withReact, ReactEditor, RenderElementProps, RenderLeafProps } from 'slate-react';
 import { withHistory } from 'slate-history';
 import { v4 as uuidv4 } from 'uuid';
 import { useAppSelector, useAppDispatch } from '@/hooks';
@@ -79,9 +79,30 @@ const TextEditor: React.FC = () => {
     );
   };
 
-  // Render leaf function to highlight tagged text
-  const renderLeaf = useCallback((props: any) => {
+  // Render element function to handle different block types
+  const renderElement = useCallback((props: RenderElementProps) => {
+    const { attributes, children, element } = props;
+    
+    switch (element.type) {
+      case 'heading':
+        const level = element.level || 1;
+        const HeadingTag = `h${level}` as keyof JSX.IntrinsicElements;
+        return <HeadingTag {...attributes} className={`text-${level === 1 ? '2xl' : 'xl'} font-bold mb-2`}>{children}</HeadingTag>;
+      
+      case 'list-item':
+        return <li {...attributes} className="ml-5">{children}</li>;
+      
+      default:
+        return <p {...attributes} className="mb-2">{children}</p>;
+    }
+  }, []);
+
+  // Render leaf function to highlight tagged text and handle text formatting
+  const renderLeaf = useCallback((props: RenderLeafProps) => {
     const { attributes, children, leaf } = props;
+    
+    let className = '';
+    let style: React.CSSProperties = {};
     
     // Find all tags that apply to this text node
     const matchingTags = tags.filter(tag => {
@@ -100,20 +121,35 @@ const TextEditor: React.FC = () => {
     });
     
     if (matchingTags.length > 0) {
-      // Use the first matching tag's color (we could also blend colors or show multiple tags)
-      const tagColor = matchingTags[0].color;
-      
-      return (
-        <span
-          {...attributes}
-          className={cn(
-            "bg-opacity-30 relative group",
-            { "cursor-pointer": matchingTags.length > 0 }
-          )}
-          style={{ backgroundColor: tagColor }}
-          data-tag-id={matchingTags.map(t => t.id).join(',')}
-        >
-          {children}
+      // Use the first matching tag's color
+      style.backgroundColor = matchingTags[0].color;
+      className += ' bg-opacity-30 relative group';
+      if (matchingTags.length > 0) className += ' cursor-pointer';
+    }
+    
+    // Apply text formatting
+    let formattedText = <span data-tag-id={matchingTags.map(t => t.id).join(',')}>{children}</span>;
+    
+    if (leaf.bold) {
+      formattedText = <strong>{formattedText}</strong>;
+    }
+    
+    if (leaf.italic) {
+      formattedText = <em>{formattedText}</em>;
+    }
+    
+    if (leaf.underline) {
+      formattedText = <u>{formattedText}</u>;
+    }
+    
+    if (leaf.code) {
+      formattedText = <code className="bg-gray-100 px-1 rounded">{formattedText}</code>;
+    }
+    
+    return (
+      <span {...attributes} className={className} style={style}>
+        {formattedText}
+        {matchingTags.length > 0 && (
           <span className="absolute bottom-full left-1/2 transform -translate-x-1/2 bg-white p-2 rounded shadow-lg hidden group-hover:block z-10 min-w-[200px] text-sm">
             {matchingTags.map(tag => (
               <div key={tag.id} className="mb-1">
@@ -121,11 +157,9 @@ const TextEditor: React.FC = () => {
               </div>
             ))}
           </span>
-        </span>
-      );
-    }
-    
-    return <span {...attributes}>{children}</span>;
+        )}
+      </span>
+    );
   }, [tags]);
 
   // Update selection when Slate selection changes
@@ -162,6 +196,7 @@ const TextEditor: React.FC = () => {
           >
             <Editable
               className="min-h-[300px] focus:outline-none prose prose-sm max-w-none"
+              renderElement={renderElement}
               renderLeaf={renderLeaf}
               placeholder="Start typing or load a file..."
             />
