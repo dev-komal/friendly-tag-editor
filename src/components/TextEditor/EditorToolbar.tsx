@@ -12,6 +12,7 @@ import {
   Save, 
   Clock
 } from 'lucide-react';
+import { toast } from "sonner";
 
 interface EditorToolbarProps {
   addTag: (content: string, color: string) => void;
@@ -41,17 +42,21 @@ const EditorToolbar: React.FC<EditorToolbarProps> = ({ addTag, selection }) => {
       try {
         const content = event.target?.result as string;
         
-        // For simplicity, we'll create a basic paragraph structure
-        // In a real app, you might need more sophisticated parsing
+        // Parse content into paragraphs
         const paragraphs = content.split('\n').map(paragraph => ({
-          type: 'paragraph',
-          children: [{ text: paragraph }]
+          type: 'paragraph' as const,
+          children: [{ text: paragraph || ' ' }]  // Use space for empty lines
         }));
         
+        // Dispatch the content to Redux store
         dispatch(setContent(paragraphs));
         dispatch(setFileName(file.name));
+        
+        // Notify the user
+        toast.success(`File "${file.name}" loaded successfully`);
       } catch (error) {
         console.error('Error loading file:', error);
+        toast.error('Error loading file. Please try again.');
       }
     };
     

@@ -5,7 +5,7 @@ import { Slate, Editable, withReact, ReactEditor } from 'slate-react';
 import { withHistory } from 'slate-history';
 import { v4 as uuidv4 } from 'uuid';
 import { useAppSelector, useAppDispatch } from '@/hooks';
-import { setContent, addTag, saveChanges, Tag } from '@/store/editorSlice';
+import { setContent, addTag, saveChanges, Tag, CustomDescendant } from '@/store/editorSlice';
 import EditorToolbar from './EditorToolbar';
 import TagList from './TagList';
 import { cn } from '@/lib/utils';
@@ -31,7 +31,7 @@ const TextEditor: React.FC = () => {
     } catch (error) {
       console.error('Error initializing editor:', error);
     }
-  }, [editor]);
+  }, [editor, content]);
 
   // Auto-save functionality
   useEffect(() => {
@@ -46,11 +46,13 @@ const TextEditor: React.FC = () => {
 
   const handleChange = useCallback((newValue: Descendant[]) => {
     dispatch(setContent(newValue));
-  }, [dispatch]);
-
-  const handleSelectionChange = useCallback((newSelection: Range | null) => {
-    setSelection(newSelection);
-  }, []);
+    
+    // Update selection when content changes
+    const editorSelection = editor.selection;
+    if (editorSelection) {
+      setSelection(editorSelection);
+    }
+  }, [dispatch, editor]);
 
   const addTagToSelection = useCallback((tagContent: string, color: string = '#FFE58F') => {
     if (selection && !Range.isCollapsed(selection)) {
@@ -124,7 +126,26 @@ const TextEditor: React.FC = () => {
     }
     
     return <span {...attributes}>{children}</span>;
-  }, [editor, tags]);
+  }, [tags]);
+
+  // Update selection when Slate selection changes
+  const onSelectionChangeHandler = useCallback(() => {
+    setSelection(editor.selection);
+  }, [editor]);
+
+  // Add effect to monitor editor selection changes
+  useEffect(() => {
+    // This is a hack to track selection changes due to slate-react API limitations
+    const originalOnChange = editor.onChange;
+    editor.onChange = () => {
+      originalOnChange();
+      onSelectionChangeHandler();
+    };
+
+    return () => {
+      editor.onChange = originalOnChange;
+    };
+  }, [editor, onSelectionChangeHandler]);
 
   return (
     <div className="flex flex-col lg:flex-row h-full gap-4">
@@ -138,7 +159,6 @@ const TextEditor: React.FC = () => {
             editor={editor}
             initialValue={content}
             onChange={handleChange}
-            onSelectionChange={handleSelectionChange}
           >
             <Editable
               className="min-h-[300px] focus:outline-none prose prose-sm max-w-none"
