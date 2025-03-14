@@ -1,13 +1,19 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+
+import React from 'react';
+import { Provider } from 'react-redux';
+import { store } from '@/store';
+import TextEditor from '@/components/TextEditor';
 
 const Index = () => {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">Welcome to Your Blank App</h1>
-        <p className="text-xl text-gray-600">Start building your amazing project here!</p>
+    <Provider store={store}>
+      <div className="container mx-auto py-6 px-4">
+        <h1 className="text-3xl font-bold mb-6">Text Editor with Tagging</h1>
+        <div className="bg-gray-50 rounded-lg p-4 shadow-md">
+          <TextEditor />
+        </div>
       </div>
-    </div>
+    </Provider>
   );
 };
 
